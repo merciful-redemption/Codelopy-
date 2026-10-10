@@ -1,0 +1,6 @@
+{
+  "name": "Codelopy",
+  "description": "A local-first daily coding habit app that teaches Python, JavaScript, TypeScript, Rust, and Go through interactive lessons, FSRS spaced repetition, debugging hunts, projects, live documentation feeds, and a bring-your-own-key AI tutor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

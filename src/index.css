@@ -1,0 +1,85 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Lexend:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-dyslexic: "Lexend", "Comic Sans MS", sans-serif;
+
+  --color-codelopy-primary: #4A6FDC;
+  --color-codelopy-accent: #F6B93B;
+  --color-codelopy-success: #2ECC71;
+  --color-codelopy-error: #E74C3C;
+  --color-codelopy-dark: #2C3E50;
+  --color-codelopy-light: #ECF0F1;
+}
+
+:root {
+  --ease-out-codelopy: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-codelopy: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out-codelopy: cubic-bezier(0.65, 0, 0.35, 1);
+  --spring-codelopy: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Reduced motion compliance (Part 5.7) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+.font-dyslexic-mode {
+  font-family: var(--font-dyslexic) !important;
+  letter-spacing: 0.03em;
+  word-spacing: 0.08em;
+  line-height: 1.75;
+}
+
+.large-text-mode {
+  font-size: 112.5%;
+}
+
+/* Colorblind filters & palettes (Part 20.7) */
+.cb-deuteranopia {
+  --color-codelopy-success: #0072B2;
+  --color-codelopy-error: #D55E00;
+}
+
+.cb-protanopia {
+  --color-codelopy-success: #56B4E9;
+  --color-codelopy-error: #E69F00;
+}
+
+.cb-tritanopia {
+  --color-codelopy-success: #009E73;
+  --color-codelopy-error: #CC79A7;
+}
+
+/* Custom subtle scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(74, 111, 220, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(74, 111, 220, 0.45);
+}
+
