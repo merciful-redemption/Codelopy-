@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Award,
   BookOpen,
@@ -24,12 +24,23 @@ import {
   MONTHLY_CHALLENGE_POOL,
 } from '../loopwrightV3Data';
 import {
+  AI_DEBATE_TOPICS,
+  CODE_REVIEW_ARENA_ITEMS,
+  COMPLEXITY_CHEAT_SHEET,
+  estimateBigOComplexity,
+  INTERVIEW_QUESTION_BANK,
+  LANGUAGE_COMPARISON_SNIPPETS,
+} from '../loopwrightV4StudioData';
+import {
   AIInterviewTranscript,
   AlgorithmGymItem,
   AppScreen,
   InterviewDrill,
   InterviewDrillType,
+  InterviewRoleFocus,
+  InterviewSeniority,
   MonthlyChallengeId,
+  ProgrammingLanguageId,
   UserDatabase,
   UserHuntRecord,
 } from '../types';
@@ -67,8 +78,8 @@ export const MonthlyChallengeCard: React.FC<MonthlyChallengeCardProps> = ({
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{mc.description}</p>
         </div>
-        <span className="text-xs font-mono font-semibold text-[#2ECC71] whitespace-nowrap">
-          +500 XP · +1 Freeze
+        <span className="text-xs font-mono font-semibold text-[#2DD4A7] whitespace-nowrap">
+          +500 XP · +1 Freeze · Badge
         </span>
       </div>
 
@@ -81,7 +92,7 @@ export const MonthlyChallengeCard: React.FC<MonthlyChallengeCardProps> = ({
         </div>
         <div className="w-full h-2.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
           <div
-            className="h-full bg-[#4A6FDC] transition-all duration-500"
+            className="h-full bg-[#4C5BD4] transition-all duration-500"
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -92,7 +103,7 @@ export const MonthlyChallengeCard: React.FC<MonthlyChallengeCardProps> = ({
           <button
             type="button"
             onClick={() => setShowSwapPicker((s) => !s)}
-            className="min-h-[38px] px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold flex items-center gap-1.5 hover:border-[#4A6FDC]"
+            className="min-h-[38px] px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold flex items-center gap-1.5 hover:border-[#4C5BD4]"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Swap Challenge (1 left this month)</span>
@@ -107,10 +118,10 @@ export const MonthlyChallengeCard: React.FC<MonthlyChallengeCardProps> = ({
           <button
             type="button"
             onClick={onClaimReward}
-            className="min-h-[38px] px-4 py-1.5 rounded-xl bg-[#2ECC71] text-white text-xs font-bold flex items-center gap-1.5"
+            className="min-h-[38px] px-4 py-1.5 rounded-xl bg-[#2DD4A7] text-slate-950 text-xs font-bold flex items-center gap-1.5"
           >
             <Trophy className="w-3.5 h-3.5" />
-            <span>Claim +500 XP & Freeze</span>
+            <span>Claim +500 XP &amp; Badge</span>
           </button>
         )}
         {mc.rewardClaimed && (
@@ -150,6 +161,7 @@ export const MonthlyChallengeCard: React.FC<MonthlyChallengeCardProps> = ({
 
 interface PracticeHubViewProps {
   db: UserDatabase;
+  initialSubTab?: 'overview' | 'gyms' | 'interview' | 'arena_labs' | 'mistakes';
   cardSurfaceClass: string;
   onNavigate: (screen: AppScreen) => void;
   onCompleteInterviewDrill: (drillId: string, xpReward: number) => void;
@@ -161,6 +173,7 @@ interface PracticeHubViewProps {
 
 export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
   db,
+  initialSubTab = 'overview',
   cardSurfaceClass,
   onNavigate,
   onCompleteInterviewDrill,
@@ -170,8 +183,12 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
   onUpdateMistakeNote,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<
-    'overview' | 'gyms' | 'interview' | 'mistakes'
-  >('overview');
+    'overview' | 'gyms' | 'interview' | 'arena_labs' | 'mistakes'
+  >(initialSubTab);
+
+  useEffect(() => {
+    setActiveSubTab(initialSubTab);
+  }, [initialSubTab]);
 
   // Algorithm Gym state
   const [selectedGym, setSelectedGym] = useState<AlgorithmGymItem>(ALGORITHM_GYM_ITEMS[0]);
@@ -180,7 +197,7 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
   );
   const [gymResult, setGymResult] = useState<{ passed: boolean; output: string } | null>(null);
 
-  // [3.2] Interview Mode state
+  // Interview & Career state (Part 17)
   const calibratedDrills = getCalibratedInterviewDrills(db);
   const [selectedDrillType, setSelectedDrillType] = useState<InterviewDrillType | 'all'>('all');
   const [activeDrill, setActiveDrill] = useState<InterviewDrill>(calibratedDrills[0].drill);
@@ -192,11 +209,27 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
     message: string;
   } | null>(null);
 
-  // [3.2] Optional AI Interviewer (Requires N1) state
+  // Mock Interviewer & Question Bank state (Part 17.3 & 17.4)
   const hasN1Provider = Boolean(db.aiConfig.provider);
-  const [interviewModeTab, setInterviewModeTab] = useState<'drills' | 'ai_interviewer'>('drills');
+  const [interviewModeTab, setInterviewModeTab] = useState<
+    'drills' | 'ai_interviewer' | 'question_bank'
+  >('drills');
+  const [roleFocus, setRoleFocus] = useState<InterviewRoleFocus>('Backend');
+  const [seniority, setSeniority] = useState<InterviewSeniority>('Mid');
   const [candidateApproachText, setCandidateApproachText] = useState<string>('');
   const [activeTranscript, setActiveTranscript] = useState<AIInterviewTranscript | null>(null);
+
+  // Studio Labs state (Part 13.9 & Part 22: Big-O Estimator, Code Review Arena, AI Debate, Language Comparison)
+  const [bigOInput, setBigOInput] = useState<string>(
+    'for i in range(len(nums)):\n    for j in range(i + 1, len(nums)):\n        print(nums[i], nums[j])'
+  );
+  const [selectedArenaIdx, setSelectedArenaIdx] = useState<number>(0);
+  const [arenaSelectedIssue, setArenaSelectedIssue] = useState<string>('');
+  const [arenaChecked, setArenaChecked] = useState<boolean>(false);
+  const [selectedDebateIdx, setSelectedDebateIdx] = useState<number>(0);
+  const [debateChoice, setDebateChoice] = useState<'A' | 'B' | null>(null);
+  const [compareLangA, setCompareLangA] = useState<ProgrammingLanguageId>('python');
+  const [compareLangB, setCompareLangB] = useState<ProgrammingLanguageId>('rust');
 
   // Mistake Journal state
   const [resolvingMistakeId, setResolvingMistakeId] = useState<string | null>(null);
@@ -334,7 +367,8 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
             [
               { id: 'overview', label: 'Hub Overview' },
               { id: 'gyms', label: 'Algorithm & CS Gyms' },
-              { id: 'interview', label: 'Interview Mode' },
+              { id: 'interview', label: 'Interview & Career' },
+              { id: 'arena_labs', label: 'Big-O, Code Review & Labs' },
               {
                 id: 'mistakes',
                 label: `Mistake Journal (${activeMistakes.length} active / ${clearedMistakes.length} cleared)`,
@@ -347,8 +381,8 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
               onClick={() => setActiveSubTab(tab.id)}
               className={`min-h-[40px] px-4 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
                 activeSubTab === tab.id
-                  ? 'bg-[#4A6FDC] text-white'
-                  : 'border border-slate-200 dark:border-slate-700 hover:border-[#4A6FDC]'
+                  ? 'bg-[#4C5BD4] text-white'
+                  : 'border border-slate-200 dark:border-slate-700 hover:border-[#4C5BD4]'
               }`}
             >
               {tab.label}
@@ -619,13 +653,13 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
         <div className="flex flex-col gap-5">
           {/* Top Mode Bar: Offline 10-Type Drills (N0) vs Optional AI Interviewer (N1) */}
           <div className={`${cardSurfaceClass} p-5 rounded-3xl flex flex-wrap items-center justify-between gap-4`}>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setInterviewModeTab('drills')}
                 className={`min-h-[42px] px-4 py-2 rounded-xl text-xs font-bold transition-colors ${
                   interviewModeTab === 'drills'
-                    ? 'bg-[#4A6FDC] text-white'
+                    ? 'bg-[#4C5BD4] text-white'
                     : 'border border-slate-200 dark:border-slate-700'
                 }`}
               >
@@ -636,12 +670,23 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
                 onClick={() => setInterviewModeTab('ai_interviewer')}
                 className={`min-h-[42px] px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors ${
                   interviewModeTab === 'ai_interviewer'
-                    ? 'bg-[#4A6FDC] text-white'
+                    ? 'bg-[#4C5BD4] text-white'
                     : 'border border-slate-200 dark:border-slate-700'
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Optional AI Interviewer</span>
+                <span>Mock Interviewer ({roleFocus} · {seniority})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setInterviewModeTab('question_bank')}
+                className={`min-h-[42px] px-4 py-2 rounded-xl text-xs font-bold transition-colors ${
+                  interviewModeTab === 'question_bank'
+                    ? 'bg-[#4C5BD4] text-white'
+                    : 'border border-slate-200 dark:border-slate-700'
+                }`}
+              >
+                Question Bank &amp; Career Readiness
               </button>
             </div>
 
@@ -945,6 +990,41 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
 
                   {/* Saved Local Transcripts */}
                   <div className="lg:col-span-5 flex flex-col gap-2.5">
+                    <div className="flex flex-wrap items-center gap-2 pb-1">
+                      <select
+                        value={roleFocus}
+                        onChange={(e) => setRoleFocus(e.target.value as InterviewRoleFocus)}
+                        className="min-h-[36px] px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent text-xs font-semibold"
+                      >
+                        {(
+                          [
+                            'Backend',
+                            'Frontend',
+                            'Full-stack',
+                            'Data',
+                            'Systems',
+                            'Mobile',
+                            'DevOps',
+                            'Security',
+                          ] as InterviewRoleFocus[]
+                        ).map((r) => (
+                          <option key={r} value={r}>
+                            Role: {r}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={seniority}
+                        onChange={(e) => setSeniority(e.target.value as InterviewSeniority)}
+                        className="min-h-[36px] px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent text-xs font-semibold"
+                      >
+                        {(['Junior', 'Mid', 'Senior'] as InterviewSeniority[]).map((s) => (
+                          <option key={s} value={s}>
+                            Level: {s}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
                       Local Session Transcripts ({(db.interviewTranscripts || []).length})
                     </h3>
@@ -958,9 +1038,9 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
                           key={tr.id}
                           type="button"
                           onClick={() => setActiveTranscript(tr)}
-                          className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-[#4A6FDC] text-left flex flex-col gap-1"
+                          className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-[#4C5BD4] text-left flex flex-col gap-1"
                         >
-                          <div className="flex items-center justify-between text-[11px] font-mono text-[#4A6FDC]">
+                          <div className="flex items-center justify-between text-[11px] font-mono text-[#4C5BD4]">
                             <span>{tr.concept.toUpperCase()}</span>
                             <span>{new Date(tr.createdAt).toLocaleDateString()}</span>
                           </div>
@@ -976,6 +1056,363 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
               )}
             </div>
           )}
+
+          {/* Question Bank & Career Portfolio Integration (Part 17.4 & 17.5) */}
+          {interviewModeTab === 'question_bank' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              <div className={`${cardSurfaceClass} lg:col-span-7 p-6 rounded-3xl flex flex-col gap-4`}>
+                <h2 className="text-lg font-bold">Interview Question Bank</h2>
+                <div className="flex flex-col gap-3">
+                  {INTERVIEW_QUESTION_BANK.map((q) => (
+                    <div
+                      key={q.id}
+                      className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col gap-2"
+                    >
+                      <div className="flex items-center justify-between text-xs font-mono text-[#4C5BD4]">
+                        <span>{q.role}</span>
+                        <span>{q.seniority}</span>
+                      </div>
+                      <div className="text-sm font-bold">{q.question}</div>
+                      <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                        <strong>Strong Sample Answer:</strong> {q.sampleAnswer}
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        <strong>Follow-up:</strong> {q.followUp}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className={`${cardSurfaceClass} lg:col-span-5 p-6 rounded-3xl flex flex-col gap-4`}>
+                <h2 className="text-lg font-bold">Portfolio &amp; Career Readiness</h2>
+                <div className="p-4 rounded-2xl bg-[#4C5BD4]/10 border border-[#4C5BD4]/30 flex flex-col gap-1">
+                  <span className="text-xs font-mono text-[#4C5BD4] font-bold">
+                    CAREER READINESS SCORE
+                  </span>
+                  <div className="text-3xl font-bold tabular-nums">
+                    {Math.min(
+                      100,
+                      completedDrillsCount * 5 +
+                        db.projects.filter((p) => p.status === 'completed').length * 15
+                    )}
+                    %
+                  </div>
+                  <span className="text-xs text-slate-500">
+                    Based on completed interview drills and verified portfolio projects (personal readiness metric; no external credential issued).
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Resume Bullet Suggestions from Completed Projects
+                  </h3>
+                  {db.projects.filter((p) => p.status === 'completed').length === 0 ? (
+                    <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs text-slate-500">
+                      Complete a Guided or Custom Project in the Build tab to generate tailored technical resume bullets.
+                    </div>
+                  ) : (
+                    db.projects
+                      .filter((p) => p.status === 'completed')
+                      .map((proj) => (
+                        <div
+                          key={proj.id}
+                          className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs leading-relaxed"
+                        >
+                          • Built and verified <strong>{proj.name}</strong> in{' '}
+                          {proj.languageId.toUpperCase()}, implementing modular step validation and automated output checks.
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ====================================================================
+          SUB-TAB 4: V4 STUDIO LABS (Big-O Estimator, Complexity Cheat Sheet,
+          Code Review Arena, AI Debate, and Language Comparison)
+         ==================================================================== */}
+      {activeSubTab === 'arena_labs' && (
+        <div className="flex flex-col gap-6">
+          {/* 1. Big-O Estimator & Complexity Cheat Sheet (Part 22.4 & 22.5) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div className={`${cardSurfaceClass} lg:col-span-5 p-6 rounded-3xl flex flex-col gap-4`}>
+              <div>
+                <span className="text-xs font-mono text-[#4C5BD4] font-semibold">
+                  ON-DEVICE STATIC ANALYZER
+                </span>
+                <h2 className="text-lg font-bold">Big-O Complexity Estimator</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Paste a loop, sort, or search snippet to estimate worst-case Time and Auxiliary Space complexity.
+                </p>
+              </div>
+              <textarea
+                value={bigOInput}
+                onChange={(e) => setBigOInput(e.target.value)}
+                rows={5}
+                className="w-full p-3.5 rounded-2xl bg-[#14181F] text-slate-100 font-mono text-xs border border-slate-700"
+              />
+              {(() => {
+                const est = estimateBigOComplexity(bigOInput);
+                return (
+                  <div className="p-4 rounded-2xl bg-[#4C5BD4]/10 border border-[#4C5BD4]/30 flex flex-col gap-1.5 text-xs">
+                    <div className="flex items-center justify-between font-mono font-bold">
+                      <span>Estimated Time: {est.timeComplexity}</span>
+                      <span>Space: {est.spaceComplexity}</span>
+                    </div>
+                    <p className="text-slate-600 dark:text-slate-300">{est.rationale}</p>
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className={`${cardSurfaceClass} lg:col-span-7 p-6 rounded-3xl flex flex-col gap-4`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold">Complexity Cheat Sheet</h2>
+                  <p className="text-xs text-slate-500">
+                    Data Structures, Sorting, and Searching bounds with direct gym links.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveSubTab('gyms')}
+                  className="min-h-[36px] px-3 py-1.5 rounded-xl bg-[#4C5BD4] text-white text-xs font-semibold"
+                >
+                  Practice in Gym
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500">
+                      <th className="py-2 pr-3">Structure / Algorithm</th>
+                      <th className="py-2 pr-3">Avg Time</th>
+                      <th className="py-2 pr-3">Worst Time</th>
+                      <th className="py-2">Space</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200/60 dark:divide-slate-800">
+                    {COMPLEXITY_CHEAT_SHEET.map((row) => (
+                      <tr key={row.name}>
+                        <td className="py-2.5 pr-3 font-semibold">{row.name}</td>
+                        <td className="py-2.5 pr-3 font-mono text-[#2DD4A7]">{row.averageTime}</td>
+                        <td className="py-2.5 pr-3 font-mono text-[#FF9F43]">{row.worstTime}</td>
+                        <td className="py-2.5 font-mono">{row.space}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Code Review Arena & AI Debate (Part 13.9) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* Code Review Arena */}
+            {(() => {
+              const item = CODE_REVIEW_ARENA_ITEMS[selectedArenaIdx] || CODE_REVIEW_ARENA_ITEMS[0];
+              return (
+                <div className={`${cardSurfaceClass} p-6 rounded-3xl flex flex-col justify-between gap-4`}>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-lg font-bold">Code Review Arena</h2>
+                      <div className="flex gap-1.5">
+                        {CODE_REVIEW_ARENA_ITEMS.map((c, idx) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedArenaIdx(idx);
+                              setArenaSelectedIssue('');
+                              setArenaChecked(false);
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold ${
+                              selectedArenaIdx === idx
+                                ? 'bg-[#4C5BD4] text-white'
+                                : 'border border-slate-200 dark:border-slate-700'
+                            }`}
+                          >
+                            Diff #{idx + 1}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="text-sm font-semibold">{item.title}</div>
+                    <pre className="p-3.5 rounded-2xl bg-[#14181F] text-[#2DD4A7] font-mono text-xs overflow-x-auto">
+                      <code>{item.diffSnippet}</code>
+                    </pre>
+                    <div className="flex flex-col gap-2">
+                      {item.issuesToFind.map((iss) => (
+                        <button
+                          key={iss}
+                          type="button"
+                          onClick={() => {
+                            setArenaSelectedIssue(iss);
+                            setArenaChecked(true);
+                          }}
+                          className={`p-3 rounded-xl border text-left text-xs font-medium ${
+                            arenaSelectedIssue === iss
+                              ? 'border-[#4C5BD4] bg-[#4C5BD4]/15'
+                              : 'border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
+                          {iss}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {arenaChecked && (
+                    <div
+                      className={`p-3.5 rounded-2xl border text-xs ${
+                        arenaSelectedIssue === item.correctIssue
+                          ? 'border-[#2DD4A7] bg-[#2DD4A7]/10 text-[#2DD4A7]'
+                          : 'border-[#F0524F] bg-[#F0524F]/10 text-[#F0524F]'
+                      }`}
+                    >
+                      <strong>
+                        {arenaSelectedIssue === item.correctIssue
+                          ? 'Defect Identified! '
+                          : 'Review Rubric: '}
+                      </strong>
+                      {item.explanation}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* AI Debate Mode */}
+            {(() => {
+              const topic = AI_DEBATE_TOPICS[selectedDebateIdx] || AI_DEBATE_TOPICS[0];
+              return (
+                <div className={`${cardSurfaceClass} p-6 rounded-3xl flex flex-col justify-between gap-4`}>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-lg font-bold">Engineering Trade-Off Debate</h2>
+                      <div className="flex gap-1.5">
+                        {AI_DEBATE_TOPICS.map((d, idx) => (
+                          <button
+                            key={d.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedDebateIdx(idx);
+                              setDebateChoice(null);
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold ${
+                              selectedDebateIdx === idx
+                                ? 'bg-[#4C5BD4] text-white'
+                                : 'border border-slate-200 dark:border-slate-700'
+                            }`}
+                          >
+                            Topic #{idx + 1}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="text-sm font-bold">{topic.title}</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setDebateChoice('A')}
+                        className={`p-4 rounded-2xl border text-left flex flex-col gap-1.5 ${
+                          debateChoice === 'A'
+                            ? 'border-[#4C5BD4] bg-[#4C5BD4]/15'
+                            : 'border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        <span className="text-xs font-bold text-[#4C5BD4]">{topic.sideATitle}</span>
+                        <span className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                          {topic.sideAArgument}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDebateChoice('B')}
+                        className={`p-4 rounded-2xl border text-left flex flex-col gap-1.5 ${
+                          debateChoice === 'B'
+                            ? 'border-[#4C5BD4] bg-[#4C5BD4]/15'
+                            : 'border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        <span className="text-xs font-bold text-[#FF9F43]">{topic.sideBTitle}</span>
+                        <span className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                          {topic.sideBArgument}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                  {debateChoice && (
+                    <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-xs leading-relaxed">
+                      <strong>Architectural Synthesis:</strong> {topic.synthesisTakeaway}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* 3. Side-by-Side Language Comparison Tool (Part 22.8) */}
+          <div className={`${cardSurfaceClass} p-6 rounded-3xl flex flex-col gap-4`}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold">Side-by-Side Language Comparison</h2>
+                <p className="text-xs text-slate-500">
+                  Compare collection pipelines, data modeling, and error handling across languages.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <select
+                  value={compareLangA}
+                  onChange={(e) => setCompareLangA(e.target.value as ProgrammingLanguageId)}
+                  className="min-h-[36px] px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent font-semibold uppercase"
+                >
+                  {(['python', 'javascript', 'typescript', 'rust', 'go'] as ProgrammingLanguageId[]).map(
+                    (l) => (
+                      <option key={l} value={l}>
+                        {l}
+                      </option>
+                    )
+                  )}
+                </select>
+                <span>vs.</span>
+                <select
+                  value={compareLangB}
+                  onChange={(e) => setCompareLangB(e.target.value as ProgrammingLanguageId)}
+                  className="min-h-[36px] px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent font-semibold uppercase"
+                >
+                  {(['python', 'javascript', 'typescript', 'rust', 'go'] as ProgrammingLanguageId[]).map(
+                    (l) => (
+                      <option key={l} value={l}>
+                        {l}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[compareLangA, compareLangB].map((langKey, i) => {
+                const snip = LANGUAGE_COMPARISON_SNIPPETS[langKey];
+                return (
+                  <div
+                    key={`${langKey}-${i}`}
+                    className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col gap-2"
+                  >
+                    <span className="text-xs font-mono font-bold uppercase text-[#4C5BD4]">
+                      {langKey}
+                    </span>
+                    <pre className="p-3 rounded-xl bg-[#14181F] text-slate-100 font-mono text-xs overflow-x-auto">
+                      <code>{`${snip.filterMap}\n\n${snip.structOrDict}\n\n${snip.errorHandling}`}</code>
+                    </pre>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 

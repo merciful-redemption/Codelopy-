@@ -21,7 +21,35 @@ export type LearningGoal = 'basics' | 'project' | 'job' | 'fun';
 
 export type DailyGoalMinutes = 5 | 10 | 20 | 30;
 
-export type ThemeMode = 'light' | 'dark' | 'terminal' | 'neon' | 'custom';
+export type LearningStyle = 'guided' | 'project_first' | 'interview_focus' | 'exploration';
+
+export type ThemeMode =
+  | 'light'
+  | 'dark'
+  | 'system'
+  | 'high_contrast_light'
+  | 'high_contrast_dark'
+  | 'terminal'
+  | 'neon'
+  | 'paper'
+  | 'blueprint'
+  | 'circuit'
+  | 'solarized_light'
+  | 'solarized_dark'
+  | 'nord'
+  | 'dracula'
+  | 'gruvbox_light'
+  | 'gruvbox_dark'
+  | 'monokai'
+  | 'one_dark'
+  | 'tokyo_night'
+  | 'catppuccin_latte'
+  | 'catppuccin_mocha'
+  | 'rose_pine'
+  | 'kanagawa'
+  | 'everforest'
+  | 'ayu_mirage'
+  | 'custom';
 
 export type SoundSet = 'minimal' | 'classic' | 'playful' | 'silent';
 
@@ -461,6 +489,45 @@ export interface LanguageProgress {
   totalTimeSeconds: number;
 }
 
+export type InterviewRoleFocus =
+  | 'Backend'
+  | 'Frontend'
+  | 'Full-stack'
+  | 'Data'
+  | 'Systems'
+  | 'Mobile'
+  | 'DevOps'
+  | 'Security';
+
+export type InterviewSeniority = 'Junior' | 'Mid' | 'Senior';
+
+export interface StudyJournalEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  conceptId?: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface MoodEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  rating: 1 | 2 | 3 | 4 | 5;
+  note?: string;
+  createdAt: string;
+}
+
+export type DashboardCardId =
+  | 'current_lesson'
+  | 'status_strip'
+  | 'quick_actions'
+  | 'weekly_quests'
+  | 'focus_timer'
+  | 'interview_drill_day'
+  | 'mood_checkin'
+  | 'study_journal_preview'
+  | 'living_content';
+
 export interface UserSettings {
   theme: ThemeMode;
   customThemeColors: {
@@ -475,13 +542,17 @@ export interface UserSettings {
   largeText: boolean;
   dyslexicFont: boolean;
   reducedMotion: boolean;
+  calmMode: boolean; // Part 3.4 R-92 & Part 16.11: turns off all gamification pressure at once
+  moodTrackingEnabled: boolean; // Part 10.15: off by default
   colorblindMode: ColorblindMode;
   trendingEnabled: boolean;
   weeklyQuestsEnabled: boolean;
-  monthlyChallengeEnabled: boolean; // [3.1] Optional, turned off by default
-  interviewModeEnabled: boolean; // [3.2] Optional track in Practice Hub
+  monthlyChallengeEnabled: boolean;
+  interviewModeEnabled: boolean;
   autoRefreshContent: boolean;
   cacheLimitMb: number;
+  dashboardCards: DashboardCardId[]; // Part 8.2 custom dashboard card order
+  keyboardBarKeys: string[]; // Part 9.2 configurable code keyboard bar
 }
 
 export interface UserDatabase {
@@ -493,6 +564,7 @@ export interface UserDatabase {
   activeLanguage: ProgrammingLanguageId;
   experienceLevel: ExperienceLevel;
   goal: LearningGoal;
+  learningStyle: LearningStyle; // Part 8.1 Step 7b
   dailyGoalMinutes: DailyGoalMinutes;
   streak: number;
   longestStreak: number;
@@ -509,14 +581,16 @@ export interface UserDatabase {
   hunts: Record<string, UserHuntRecord>;
   bookmarks: BookmarkItem[];
   notes: NoteItem[];
+  studyJournal: StudyJournalEntry[]; // Part 10.14
+  moodLog: MoodEntry[]; // Part 10.15
   aiConfig: AIConfig;
   aiMessages: AIMessage[];
   weeklyQuest: WeeklyQuestState;
-  monthlyChallenge: MonthlyChallengeState; // [3.1]
-  mistakeJournal: MistakeJournalEntry[]; // Mistake Journal entries
-  completedInterviewDrillIds: string[]; // [3.2]
-  interviewTranscripts: AIInterviewTranscript[]; // [3.2] Stored locally
-  completedGymIds: string[]; // Algorithm & CS Gyms
+  monthlyChallenge: MonthlyChallengeState;
+  mistakeJournal: MistakeJournalEntry[];
+  completedInterviewDrillIds: string[];
+  interviewTranscripts: AIInterviewTranscript[];
+  completedGymIds: string[];
   cachedFeed: ContentFeedItem[];
   settings: UserSettings;
 }
@@ -530,6 +604,11 @@ export type AppScreen =
   | 'skill_tree'
   | 'practice_hub'
   | 'interview_mode'
+  | 'interview_career'
+  | 'reference_lab'
+  | 'time_machine'
+  | 'study_journal'
+  | 'theme_editor'
   | 'mistake_journal'
   | 'algo_gym'
   | 'v3_spec'

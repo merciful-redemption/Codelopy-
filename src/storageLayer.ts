@@ -5,8 +5,14 @@ import {
   UserDatabase,
 } from './types';
 
-const STORAGE_KEY = 'codelopy_prod_v3_1';
-const LEGACY_KEYS = ['codelopy_db_v2', 'codelopy_db_v1', 'loopwright_db'];
+const STORAGE_KEY = 'codelopy_publish_clean_v1';
+const LEGACY_KEYS = [
+  'loopwright_prod_v4_0',
+  'codelopy_prod_v3_1',
+  'codelopy_db_v2',
+  'codelopy_db_v1',
+  'loopwright_db',
+];
 
 function createEmptyLanguageProgress(lang: ProgrammingLanguageId): LanguageProgress {
   const firstLesson = ALL_LESSONS[lang]?.[0]?.id || `${lang}-lesson-1`;
@@ -25,7 +31,7 @@ function createEmptyLanguageProgress(lang: ProgrammingLanguageId): LanguageProgr
 }
 
 /**
- * Creates a strictly clean, zero-progress initial database state (Part 6 Rules 1-10).
+ * Creates a strictly clean, zero-progress initial database state (Part 3 R-73).
  * No preset profiles, no pre-earned XP, no completed lessons, no sample projects,
  * no completed debugging hunts, and no pre-cached articles.
  */
@@ -42,6 +48,7 @@ export function createCleanUserDatabase(): UserDatabase {
     activeLanguage: 'python',
     experienceLevel: 'never',
     goal: 'basics',
+    learningStyle: 'guided',
     dailyGoalMinutes: 10,
     streak: 0,
     longestStreak: 0,
@@ -64,6 +71,8 @@ export function createCleanUserDatabase(): UserDatabase {
     hunts: {},
     bookmarks: [],
     notes: [],
+    studyJournal: [],
+    moodLog: [],
     aiConfig: {
       provider: null,
       modelId: '',
@@ -107,24 +116,37 @@ export function createCleanUserDatabase(): UserDatabase {
     settings: {
       theme: 'light',
       customThemeColors: {
-        primary: '#4A6FDC',
-        background: '#ECF0F1',
+        primary: '#4C5BD4',
+        background: '#F4F6FA',
         surface: '#FFFFFF',
-        text: '#2C3E50',
+        text: '#14181F',
       },
-      soundSet: 'classic',
+      soundSet: 'minimal',
       hapticsEnabled: true,
       highContrast: false,
       largeText: false,
       dyslexicFont: false,
       reducedMotion: false,
+      calmMode: false,
+      moodTrackingEnabled: false,
       colorblindMode: 'none',
       trendingEnabled: true,
       weeklyQuestsEnabled: true,
-      monthlyChallengeEnabled: false, // [3.1] Optional, turned off by default
-      interviewModeEnabled: true, // [3.2] Optional track in Practice Hub
+      monthlyChallengeEnabled: false,
+      interviewModeEnabled: true,
       autoRefreshContent: true,
       cacheLimitMb: 500,
+      dashboardCards: [
+        'current_lesson',
+        'status_strip',
+        'quick_actions',
+        'weekly_quests',
+        'focus_timer',
+        'interview_drill_day',
+        'study_journal_preview',
+        'living_content',
+      ],
+      keyboardBarKeys: ['def', 'return', ':', '(', ')', '[', ']', '{', '}', '=', '==', '!=', '->'],
     },
   };
 }
@@ -162,6 +184,8 @@ export function loadUserDatabase(): UserDatabase {
       completedInterviewDrillIds: parsed.completedInterviewDrillIds || [],
       interviewTranscripts: parsed.interviewTranscripts || [],
       completedGymIds: parsed.completedGymIds || [],
+      studyJournal: parsed.studyJournal || [],
+      moodLog: parsed.moodLog || [],
     };
     if (!merged.aiConfig.persistentMemory) {
       merged.aiMessages = [];
